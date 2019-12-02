@@ -63,6 +63,80 @@ resource "aws_security_group" "open_web" {
   }
 }
 
+resource "aws_security_group" "ruby" {
+  name        = "ruby"
+  description = "Allow ingress to ruby app port"
+
+  ingress {
+    from_port   = 2345
+    to_port     = 2345
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    cidr_blocks     = ["0.0.0.0/0"]
+  }
+}
+
+resource "aws_security_group" "cadvisor" {
+  name        = "cadvisor"
+  description = "Allow ingress to cadvisor port"
+
+  ingress {
+    from_port   = 8081
+    to_port     = 8081
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    cidr_blocks     = ["0.0.0.0/0"]
+  }
+}
+resource "aws_security_group" "grafana" {
+  name        = "grafana"
+  description = "Allow ingress to grafana port"
+
+  ingress {
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    cidr_blocks     = ["0.0.0.0/0"]
+  }
+}
+resource "aws_security_group" "prometheus" {
+  name        = "prometheus"
+  description = "Allow ingress to prometheus port"
+
+  ingress {
+    from_port   = 9090
+    to_port     = 9090
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  egress {
+    from_port       = 0
+    to_port         = 0
+    protocol        = "-1"
+    cidr_blocks     = ["0.0.0.0/0"]
+  }
+}
+
 resource "aws_security_group" "internal" {
   name        = "internal"
   description = "Allow web ingress and all egress through the ELB"
@@ -93,7 +167,7 @@ resource "aws_instance" "dockerHost" {
   instance_type = "t2.micro"
   key_name = "deploySite_key"
   availability_zone = "eu-west-1b"
-  security_groups = ["${aws_security_group.ssh_provision.name}","${aws_security_group.internal.name}"]
+  security_groups = ["${aws_security_group.ssh_provision.name}","${aws_security_group.internal.name}","${aws_security_group.cadvisor.name}","${aws_security_group.grafana.name}","${aws_security_group.ruby.name}","${aws_security_group.prometheus.name}"]
   connection {
       type = "ssh"
       user = "admin"
@@ -105,6 +179,8 @@ resource "aws_instance" "dockerHost" {
         "sudo apt-get install -y docker",
         "sudo apt-get install -y git",
         "git clone https://github.com/optimumDecapitation/dockerNginxSite.git",
+        "git clone https://github.com/optimumDecapitation/enteraDocker.git",
+        "sudo bash enteraDocker/buildAndLaunchStack.sh",
         "sudo bash dockerNginxSite/provisionDeploy.sh"
       ]
     }
@@ -113,7 +189,7 @@ resource "aws_instance" "dockerHost" {
 resource "aws_elb" "dock" {
   name               = "nginx-terraform-elb"
   availability_zones = ["eu-west-1b"]
-  security_groups = ["${aws_security_group.open_web.id}","${aws_security_group.internal.id}"]
+  security_groups = ["${aws_security_group.open_web.id}","${aws_security_group.internal.id}","${aws_security_group.cadvisor.name}","${aws_security_group.grafana.name}","${aws_security_group.ruby.name}","${aws_security_group.prometheus.name}"]
   listener {
     instance_port     = 80
     instance_protocol = "http"
@@ -121,6 +197,33 @@ resource "aws_elb" "dock" {
     lb_protocol       = "http"
   }
 
+  listener {
+    instance_port     = 2345
+    instance_protocol = "http"
+    lb_port           = 2345
+    lb_protocol       = "http"
+  }
+
+  listener {
+    instance_port     = 3000
+    instance_protocol = "http"
+    lb_port           = 3000
+    lb_protocol       = "http"
+  }
+
+  listener {
+    instance_port     = 8081
+    instance_protocol = "http"
+    lb_port           = 8081
+    lb_protocol       = "http"
+  }
+
+  listener {
+    instance_port     = 9090
+    instance_protocol = "http"
+    lb_port           = 9090
+    lb_protocol       = "http"
+  }
   health_check {
     healthy_threshold   = 2
     unhealthy_threshold = 2
