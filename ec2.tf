@@ -156,8 +156,8 @@ resource "aws_security_group" "internal" {
   }
 }
 
-resource "aws_key_pair" "deploySite_key" {
-  key_name   = "deploySite_key"
+resource "aws_key_pair" "deploySite_keys" {
+  key_name   = "deploySite_keys"
   public_key = "${var.ssh_key}"
   }
 
@@ -165,7 +165,7 @@ resource "aws_key_pair" "deploySite_key" {
 resource "aws_instance" "dockerHost" {
   ami           = "ami-0d7e8a38d69832b2e"
   instance_type = "t2.micro"
-  key_name = "deploySite_key"
+  key_name = "deploySite_keys"
   availability_zone = "eu-west-1b"
   security_groups = ["${aws_security_group.ssh_provision.name}","${aws_security_group.internal.name}","${aws_security_group.cadvisor.name}","${aws_security_group.grafana.name}","${aws_security_group.ruby.name}","${aws_security_group.prometheus.name}"]
   connection {
