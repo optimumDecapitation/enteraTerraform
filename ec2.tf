@@ -7,7 +7,7 @@ variable "secret_key_aws" {
 }
 
 variable "vpc_id" {
-  default = "ENTER THE TARGET VPC HERE" #THIS FILE IS SPECIFICALLY FOR THE EU-WEST-1B REGION/AVAILABILITY-ZONE
+  default ="ENTER YOUR VPC HERE" #THIS FILE IS SPECIFICALLY FOR THE EU-WEST-1B REGION/AVAILABILITY-ZONE
 }
 
 variable "ssh_key" {
@@ -65,9 +65,9 @@ resource "aws_security_group" "open_web1" {
   }
 }
 
-resource "aws_security_group" "appstackExternal" {
-  name        = "appstackExternal"
-  description = "Allow ingress to appstackExternal ports"
+resource "aws_security_group" "appstackExternal1" {
+  name        = "appstackExternal1"
+  description = "Allow ingress to appstackExternal1 ports"
 
   ingress {
     from_port   = 2345
@@ -77,8 +77,8 @@ resource "aws_security_group" "appstackExternal" {
   }
 
   ingress {
-    from_port   = 8081
-    to_port     = 8081
+    from_port   = 2727
+    to_port     = 2727
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -86,13 +86,6 @@ resource "aws_security_group" "appstackExternal" {
   ingress {
     from_port   = 3000
     to_port     = 3000
-    protocol    = "tcp"
-    cidr_blocks = ["0.0.0.0/0"]
-  }
-
-    ingress {
-    from_port   = 9090
-    to_port     = 9090
     protocol    = "tcp"
     cidr_blocks = ["0.0.0.0/0"]
   }
@@ -112,6 +105,13 @@ resource "aws_security_group" "internal1" {
   ingress {
     from_port   = 80
     to_port     = 80
+    protocol    = "tcp"
+    cidr_blocks = [data.aws_vpc.selected.cidr_block]
+  }
+
+  ingress {
+    from_port   = 2727
+    to_port     = 2727
     protocol    = "tcp"
     cidr_blocks = [data.aws_vpc.selected.cidr_block]
   }
@@ -163,23 +163,34 @@ resource "aws_instance" "dockerHost" {
   key_name          = "deploySite_keys"
   availability_zone = "eu-west-1b"
   #security_groups   = [aws_security_group.ssh_provision1.name, aws_security_group.internal1.name, aws_security_group.cadvisor.name, aws_security_group.grafana.name, aws_security_group.ruby.name, aws_security_group.prometheus.name]
-  security_groups   = [aws_security_group.ssh_provision1.name, aws_security_group.appstackExternal.name]
+  security_groups   = [aws_security_group.ssh_provision1.name, aws_security_group.internal1.name]
   connection {
     host  = coalesce(self.public_ip, self.private_ip)
     type  = "ssh"
     user  = "admin"
     agent = true
   }
+  tags = {
+    Name = "DemoEnvironment"
+  }
 }
 
 resource "aws_elb" "dock" {
   name               = "nginx-terraform-elb"
   availability_zones = ["eu-west-1b"]
-  security_groups   = [aws_security_group.ssh_provision1.name, aws_security_group.appstackExternal.name]
+  #security_groups   = [aws_security_group.ssh_provision1.name, aws_security_group.appstackExternal1.name]
+  security_groups   = [aws_security_group.appstackExternal1.id]
   listener {
     instance_port     = 80
     instance_protocol = "http"
     lb_port           = 80
+    lb_protocol       = "http"
+  }
+
+  listener {
+    instance_port     = 2727
+    instance_protocol = "http"
+    lb_port           = 2727
     lb_protocol       = "http"
   }
 
